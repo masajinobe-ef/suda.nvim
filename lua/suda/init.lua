@@ -51,21 +51,22 @@ local function sudo_write(src, dst)
 end
 
 local function handle_buffer(bufname, action)
-  -- Validate input parameters
   if type(bufname) ~= 'string' or #bufname == 0 then
     vim.notify('Invalid buffer name', vim.log.levels.ERROR)
     return
   end
 
-  -- Extract path from sudo:// protocol
   local path_part = bufname:match '^sudo://(.*)'
   if not path_part or #path_part == 0 then
     vim.notify('Invalid sudo protocol format', vim.log.levels.ERROR)
     return
   end
 
-  -- Normalize path
-  local path = vim.fn.expand(path_part:gsub('^/+', ''))
+  local path = vim.fn.expand(path_part:gsub('^/*', '/'))
+  if not path:match '^/' then
+    path = '/' .. path
+  end
+
   if not path or #path == 0 then
     vim.notify('Could not resolve file path', vim.log.levels.ERROR)
     return
@@ -74,10 +75,7 @@ local function handle_buffer(bufname, action)
   if action == 'read' then
     local tmp_path = sudo_read(path)
     if not tmp_path then
-      vim.notify(
-        'Failed to read file with sudo: ' .. path,
-        vim.log.levels.ERROR
-      )
+      vim.notify('Failed to read: ' .. path, vim.log.levels.ERROR)
       return
     end
 
