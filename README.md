@@ -20,7 +20,7 @@ Using lazy.nvim:
 {
   'masajinobe-ef/suda.nvim',
   config = function()
-    require('sudo').setup({})
+    require('suda').setup({})
   end
 }
 ```
