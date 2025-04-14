@@ -1,4 +1,4 @@
--- sudo.nvim - Safe sudo integration for Neovim
+-- suda.nvim - Safe sudo integration for Neovim
 -- License: MIT
 local M = {}
 
@@ -38,9 +38,14 @@ local function sudo_write(src, dst)
   local prompt = vim.g.suda_prompt or 'Password: '
 
   local cmd = string.format(
-    'sudo -p "%s" cp -pf %s %s && ' .. 'sudo -p "%s" chmod --reference=%s %s',
+    'sudo -p "%s" cp -pf %s %s && '
+      .. 'sudo -p "%s" chmod --reference=%s %s && '
+      .. 'sudo -p "%s" chown --reference=%s %s',
     prompt,
     vim.fn.shellescape(src),
+    vim.fn.shellescape(dst),
+    prompt,
+    vim.fn.shellescape(dst),
     vim.fn.shellescape(dst),
     prompt,
     vim.fn.shellescape(dst),
