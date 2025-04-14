@@ -23,7 +23,7 @@ local function sudo_read(path)
   )
 
   if os.execute(cmd) ~= 0 then
-    os.remove(tmpfile)
+    pcall(os.remove, tmpfile)
     return nil
   end
 
@@ -36,20 +36,33 @@ local function sudo_write(src, dst)
   end
 
   local prompt = vim.g.suda_prompt or 'Password: '
+  local esc = vim.fn.shellescape
 
   local cmd = string.format(
-    'sudo -p "%s" cp -pf %s %s && '
-      .. 'sudo -p "%s" chmod --reference=%s %s && '
-      .. 'sudo -p "%s" chown --reference=%s %s',
-    prompt,
-    vim.fn.shellescape(src),
-    vim.fn.shellescape(dst),
-    prompt,
-    vim.fn.shellescape(dst),
-    vim.fn.shellescape(dst),
-    prompt,
-    vim.fn.shellescape(dst),
-    vim.fn.shellescape(dst)
+    [[
+    if [ -e %s ]; then
+      ORIG_OWNER=$(sudo stat -c "%%u:%%g" %s) &&
+      ORIG_PERM=$(sudo stat -c "%%a" %s) &&
+      sudo -p %s cp %s %s &&
+      sudo -p %s chown $ORIG_OWNER %s &&
+      sudo -p %s chmod $ORIG_PERM %s
+    else
+      sudo -p %s install -m 644 %s %s
+    fi
+  ]],
+    esc(dst),
+    esc(dst),
+    esc(dst),
+    esc(prompt),
+    esc(src),
+    esc(dst),
+    esc(prompt),
+    esc(dst),
+    esc(prompt),
+    esc(dst),
+    esc(prompt),
+    esc(src),
+    esc(dst)
   )
 
   return os.execute(cmd) == 0
@@ -72,7 +85,7 @@ local function handle_buffer(bufname, action)
     path = '/' .. path
   end
 
-  if not path or #path == 0 then
+  if #path == 0 then
     vim.notify('Could not resolve file path', vim.log.levels.ERROR)
     return
   end
