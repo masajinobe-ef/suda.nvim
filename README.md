@@ -18,11 +18,9 @@ Using lazy.nvim:
 
 ```lua
 {
-  'masajinobe-ef/sudo.nvim',
+  'masajinobe-ef/suda.nvim',
   config = function()
-    require('sudo').setup({
-      smart_edit = true,  -- auto-detect unwritable files
-    })
+    require('sudo').setup({})
   end
 }
 ```
