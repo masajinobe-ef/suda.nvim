@@ -1,4 +1,4 @@
-# 🚀 sudo.nvim
+# 🚀 suda.nvim
 
 Neovim plugin for seamless sudo file editing with permissions preservation.  
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
