@@ -19,14 +19,8 @@ Using lazy.nvim:
 ```lua
 {
   'masajinobe-ef/suda.nvim',
-  dependencies = { 'nvim-lua/plenary.nvim' },
   config = function()
-<<<<<<< HEAD
     require('suda').setup {}
   end,
-=======
-    require('sudo').setup({})
-  end
->>>>>>> parent of 00516aa (README)
 }
 ```
