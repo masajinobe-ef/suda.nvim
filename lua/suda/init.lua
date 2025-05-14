@@ -14,8 +14,8 @@ local function sudo_read(path, callback)
   end
 
   local prompt = vim.g.suda_prompt or 'Password: '
-  local tmpfile = vim.fn.tempname() .. '_sudo_read'
   local stderr = {}
+  local output = {}
 
   Job:new({
     command = 'sudo',
@@ -31,57 +31,36 @@ local function sudo_read(path, callback)
           'Read failed: ' .. table.concat(stderr, '\n'),
           vim.log.levels.ERROR
         )
-        pcall(os.remove, tmpfile)
         return callback(nil)
       end
-      callback(tmpfile)
+      callback(output)
     end,
     on_stderr = function(_, data)
       table.insert(stderr, data)
     end,
-    writer = vim.fn.fnamemodify(tmpfile, ':p'),
+    on_stdout = function(_, data)
+      table.insert(output, data)
+    end,
   }):start()
 end
 
-local function sudo_write(src, dst, callback)
-  if not src or not dst or #src == 0 or #dst == 0 then
+local function sudo_write(content, dst, callback)
+  if not content or not dst or #dst == 0 then
     return callback(false)
   end
 
   local prompt = vim.g.suda_prompt or 'Password: '
   local stderr = {}
-  local script = string.format(
-    [[
-    if [ -e "%s" ]; then
-      ORIG_OWNER=$(sudo --prompt "%s" stat -c "%%u:%%g" "%s") &&
-      ORIG_PERM=$(sudo --prompt "%s" stat -c "%%a" "%s") &&
-      sudo --prompt "%s" cp "%s" "%s" &&
-      sudo --prompt "%s" chown "$ORIG_OWNER" "%s" &&
-      sudo --prompt "%s" chmod "$ORIG_PERM" "%s"
-    else
-      sudo --prompt "%s" install -m 644 "%s" "%s"
-    fi
-    ]],
-    dst,
-    prompt,
-    dst,
-    prompt,
-    dst,
-    prompt,
-    src,
-    dst,
-    prompt,
-    dst,
-    prompt,
-    dst,
-    prompt,
-    src,
-    dst
-  )
 
   Job:new({
-    command = 'sh',
-    args = { '-c', script },
+    command = 'sudo',
+    args = {
+      '--prompt',
+      prompt,
+      'tee',
+      dst,
+    },
+    stdin = table.concat(content, '\n'),
     on_exit = function(j, exit_code)
       if exit_code ~= 0 then
         vim.notify(
@@ -121,26 +100,20 @@ local function handle_buffer(bufname, action)
   end
 
   if action == 'read' then
-    sudo_read(path, function(tmp_path)
-      if not tmp_path then
+    sudo_read(path, function(lines)
+      if not lines then
         return
       end
       vim.schedule(function()
-        local lines = vim.fn.readfile(tmp_path)
         vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
         vim.bo.modified = false
         vim.bo.readonly = false
-        pcall(os.remove, tmp_path)
+        vim.bo.fileformat = vim.bo.fileformat -- Reset fileformat
       end)
     end)
   elseif action == 'write' then
-    local tmp_write = vim.fn.tempname() .. '_sudo_write'
-    vim.fn.writefile(vim.api.nvim_buf_get_lines(0, 0, -1, false), tmp_write)
-
-    -- Set secure permissions
-    os.execute('chmod 600 ' .. vim.fn.shellescape(tmp_write))
-
-    sudo_write(tmp_write, path, function(success)
+    local content = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    sudo_write(content, path, function(success)
       vim.schedule(function()
         if success then
           vim.bo.modified = false
@@ -148,7 +121,6 @@ local function handle_buffer(bufname, action)
         else
           vim.notify('Failed to save: ' .. path, vim.log.levels.ERROR)
         end
-        pcall(os.remove, tmp_write)
       end)
     end)
   end
@@ -180,8 +152,10 @@ local function setup_commands()
   vim.api.nvim_create_user_command('SudoWrite', function(opts)
     if opts.args and #opts.args > 0 then
       handle_buffer(opts.args, 'write')
+    else
+      handle_buffer(vim.api.nvim_buf_get_name(0), 'write')
     end
-  end, { nargs = 1, complete = 'file' })
+  end, { nargs = '?', complete = 'file' })
 end
 
 function M.setup()
