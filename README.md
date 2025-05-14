@@ -19,8 +19,9 @@ Using lazy.nvim:
 ```lua
 {
   'masajinobe-ef/suda.nvim',
+  dependencies = { 'nvim-lua/plenary.nvim' },
   config = function()
-    require('suda').setup({})
-  end
+    require('suda').setup {}
+  end,
 }
 ```
